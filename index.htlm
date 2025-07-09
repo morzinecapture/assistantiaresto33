@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Assistant IA - Chat</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 0;
+    }
+
+    .chat-container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: white;
+      margin-top: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    #chat-box {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 15px;
+      background: #fafafa;
+      border-radius: 10px;
+    }
+
+    .message {
+      margin: 8px 0;
+      padding: 10px 15px;
+      border-radius: 10px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      background: #d1ecf1;
+      align-self: flex-end;
+      text-align: right;
+      margin-left: auto;
+    }
+
+    .message.bot {
+      background: #f8d7da;
+      text-align: left;
+    }
+
+    .input-zone {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .input-zone input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <h1>Assistant IA Restaurateur 🤖</h1>
+    <div id="chat-box"></div>
+
+    <div class="input-zone">
+      <input type="text" id="message" placeholder="Votre message..." />
+      <input type="file" id="imageInput" accept="image/*" />
+      <button onclick="startRecording()">🎤</button>
+      <button onclick="sendMessage()">Envoyer</button>
+    </div>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById('chat-box');
+    let mediaRecorder;
+    let audioChunks = [];
+
+    function appendMessage(content, sender = 'user') {
+      const div = document.createElement('div');
+      div.className = `message ${sender}`;
+      div.innerHTML = content;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function sendMessage() {
+      const text = document.getElementById('message').value;
+      const imageInput = document.getElementById('imageInput');
+      const image = imageInput.files[0];
+
+      if (!text && !image) return;
+
+      appendMessage(text || '[Image envoyée]', 'user');
+
+      const formData = new FormData();
+      if (text) formData.append('message', text);
+      if (image) formData.append('image', image);
+
+      fetch('https://TON_WEBHOOK_URL_HERE', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        appendMessage(data.reply || '[Réponse vide]', 'bot');
+      })
+      .catch(err => {
+        appendMessage('[Erreur]', 'bot');
+        console.error(err);
+      });
+
+      document.getElementById('message').value = '';
+      imageInput.value = '';
+    }
+
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => {
+          audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append('audio', audioBlob);
+
+          appendMessage('[Message vocal envoyé]', 'user');
+
+          fetch('https://TON_WEBHOOK_URL_HERE', {
+            method: 'POST',
+            body: formData
+          })
+          .then(res => res.json())
+          .then(data => {
+            appendMessage(data.reply || '[Réponse vide]', 'bot');
+          })
+          .catch(err => {
+            appendMessage('[Erreur]', 'bot');
+            console.error(err);
+          });
+        };
+
+        setTimeout(() => {
+          mediaRecorder.stop();
+        }, 5000);
+      });
+    }
+  </script>
+</body>
+</html>
